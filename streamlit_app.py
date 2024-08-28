@@ -1,25 +1,72 @@
 import streamlit as st
 from openai import OpenAI
+import pandas as pd
+import os
+
+from langchain_community.chat_models import ChatOpenAI
+from langchain_core.messages import HumanMessage, SystemMessage
+from langchain.prompts import PromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate, ChatPromptTemplate
+from langchain_core.prompts import MessagesPlaceholder
+from langchain.chains import LLMChain, ConversationChain
+from langchain_core.output_parsers import StrOutputParser
+from langchain.memory import ConversationBufferMemory
+from langchain.schema import AIMessage, HumanMessage
+
 
 # Show title and description.
-st.title("💬 Chatbot")
-st.write(
-    "This is a simple chatbot that uses OpenAI's GPT-3.5 model to generate responses. "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-    "You can also learn how to build this app step by step by [following our tutorial](https://docs.streamlit.io/develop/tutorials/llms/build-conversational-apps)."
-)
+st.title("💬 Chinese version cocobot")
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
+
+# Setting up System Prompt
+file_path = 'system_prompt.txt'
+with open(file_path, 'r') as file:
+    default_system_message = file.read()
+
+st.info("""现在的 system prompt是:  
+        {system_prompt}""".format(system_prompt=default_system_message))
+
+if st.button('使用现在的system prompt'):
+    system_message = default_system_message
+    st.info("好的")
+
+user_input_system_message = st.text_input("你可以选择输入新的 system prompt: ")
+if st.button('使用新的 system prompt'):
+    system_message = user_input_system_message
+    st.info("""新的 system prompt是:  
+        {system_prompt}""".format(system_prompt=system_message))
+else:
+    system_message = default_system_message
+
+
+
+# Make sure we have an Openai API to use
+openai_api_key = st.secrets["OPENAI_API_KEY"]
 if not openai_api_key:
     st.info("Please add your OpenAI API key to continue.", icon="🗝️")
+
+
 else:
-
     # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+    llm = ChatOpenAI(api_key=openai_api_key, model="gpt-4o-mini")
 
+    # Create the ChatPromptTemplate
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_message),
+        MessagesPlaceholder(variable_name="history"),
+        ("human", "{input}"),
+    ])
+
+    memory = ConversationBufferMemory(return_messages=True)
+    memory.clear()
+
+    chain = ConversationChain(
+            llm=llm,
+            prompt=prompt,
+            memory=memory,
+            input_key="input",
+            output_key="response"
+        )
+    
     # Create a session state variable to store the chat messages. This ensures that the
     # messages persist across reruns.
     if "messages" not in st.session_state:
@@ -30,27 +77,42 @@ else:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
 
+
     # Create a chat input field to allow the user to enter a message. This will display
     # automatically at the bottom of the page.
-    if prompt := st.chat_input("What is up?"):
-
+    if user_input := st.chat_input("您想聊点什么？"):
+        # if user_input=="SAVE" or user_input=="save":
+        #     chat_history_df = pd.DataFrame(st.session_state.messages)
+        #     csv = chat_history_df.to_csv()
+        #     st.download_button(
+        #         label="Download data as CSV",
+        #         data=csv,
+        #         file_name="chat_history.csv",
+        #         mime="text/csv",
+        #     )
+        # else:
         # Store and display the current prompt.
-        st.session_state.messages.append({"role": "user", "content": prompt})
+        st.session_state.messages.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
-            st.markdown(prompt)
-
-        # Generate a response using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": m["role"], "content": m["content"]}
-                for m in st.session_state.messages
-            ],
-            stream=True,
-        )
+            st.markdown(user_input)
+        
+        # Use the ConversationChain
+        ai_response = chain({"input": user_input})
 
         # Stream the response to the chat using `st.write_stream`, then store it in 
         # session state.
         with st.chat_message("assistant"):
-            response = st.write_stream(stream)
-        st.session_state.messages.append({"role": "assistant", "content": response})
+                response = st.write(ai_response["response"])
+        
+        st.session_state.messages.append({"role": "assistant", "content": ai_response["response"]})
+
+        chat_history_df = pd.DataFrame(st.session_state.messages)
+        csv = chat_history_df.to_csv()
+        st.download_button(
+            label="Download data as CSV",
+            data=csv,
+            file_name="chat_history.csv",
+            mime="text/csv",
+        )
+
+        
