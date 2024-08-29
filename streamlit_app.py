@@ -10,8 +10,11 @@ from langchain_core.prompts import MessagesPlaceholder
 from langchain.chains import LLMChain, ConversationChain
 from langchain_core.output_parsers import StrOutputParser
 from langchain.memory import ConversationBufferMemory
+from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain.schema import AIMessage, HumanMessage
-
+from langchain_community.chat_message_histories import (
+    StreamlitChatMessageHistory,
+)
 
 # Show title and description.
 st.title("💬 Chinese version cocobot")
@@ -47,7 +50,7 @@ if not openai_api_key:
 
 else:
     # Create an OpenAI client.
-    llm = ChatOpenAI(api_key=openai_api_key, model="gpt-4o-mini")
+    llm = ChatOpenAI(api_key=openai_api_key, model="gpt-4o")
 
     # Create the ChatPromptTemplate
     prompt = ChatPromptTemplate.from_messages([
@@ -56,16 +59,29 @@ else:
         ("human", "{input}"),
     ])
 
-    memory = ConversationBufferMemory(return_messages=True)
-    memory.clear()
+    # memory = ConversationBufferMemory(return_messages=True)
+    # memory.clear()
 
-    chain = ConversationChain(
-            llm=llm,
-            prompt=prompt,
-            memory=memory,
-            input_key="input",
-            output_key="response"
-        )
+    # set up history memory
+    msgs = StreamlitChatMessageHistory(key="chat_history")
+
+    # create a chatbot llm chain
+    chain = prompt | llm
+    chain_with_history = RunnableWithMessageHistory(
+        chain,
+        lambda session_id: msgs,  # Always return the instance created earlier
+        input_messages_key="input",
+        # output_messages_key="content",
+        history_messages_key="history",
+    )
+
+    # chain = ConversationChain(
+    #         llm=llm,
+    #         prompt=prompt,
+    #         memory=memory,
+    #         input_key="input",
+    #         output_key="response"
+    #     )
     
     # Create a session state variable to store the chat messages. This ensures that the
     # messages persist across reruns.
@@ -96,15 +112,19 @@ else:
         with st.chat_message("user"):
             st.markdown(user_input)
         
+        config = {"configurable": {"session_id": "any"}}
+        bot_response = chain_with_history.invoke({"input": user_input}, config)
+
+
         # Use the ConversationChain
-        ai_response = chain({"input": user_input})
+        # ai_response = chain({"input": user_input})
 
         # Stream the response to the chat using `st.write_stream`, then store it in 
         # session state.
         with st.chat_message("assistant"):
-                response = st.write(ai_response["response"])
+                response = st.write(bot_response.content)
         
-        st.session_state.messages.append({"role": "assistant", "content": ai_response["response"]})
+        st.session_state.messages.append({"role": "assistant", "content": bot_response.content})
 
         chat_history_df = pd.DataFrame(st.session_state.messages)
         csv = chat_history_df.to_csv()
