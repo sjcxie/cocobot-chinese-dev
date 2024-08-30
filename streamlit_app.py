@@ -25,19 +25,20 @@ file_path = 'system_prompt.txt'
 with open(file_path, 'r') as file:
     default_system_message = file.read()
 
-st.info("""现在的 system prompt是:  
+st.info("""Instruction for the chatbot:  
         {system_prompt}""".format(system_prompt=default_system_message))
 
-if st.button('使用现在的system prompt'):
-    system_message = default_system_message
+system_message = default_system_message
+# if st.button('使用现在的system prompt'):
+#     system_message = default_system_message
 
-user_input_system_message = st.text_input("你可以选择输入新的 system prompt: ")
-if st.button('使用新的 system prompt'):
-    system_message = user_input_system_message
-    st.info("""新的 system prompt是:  
-        {system_prompt}""".format(system_prompt=system_message))
-else:
-    system_message = default_system_message
+# user_input_system_message = st.text_input("你可以选择输入新的 system prompt: ")
+# if st.button('使用新的 system prompt'):
+#     system_message = user_input_system_message
+#     st.info("""新的 system prompt是:  
+#         {system_prompt}""".format(system_prompt=system_message))
+# else:
+#     system_message = default_system_message
 
 
 
