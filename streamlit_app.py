@@ -17,7 +17,7 @@ from langchain_community.chat_message_histories import (
 )
 
 # Show title and description.
-st.title("💬 Chinese version cocobot")
+st.title("Chinese version cocobot")
 
 
 # Setting up System Prompt
