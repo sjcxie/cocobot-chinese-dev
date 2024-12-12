@@ -17,7 +17,7 @@ from langchain_community.chat_message_histories import (
 )
 
 # Show title and description.
-st.title("Chinese version cocobot")
+st.title("家庭照护者聊愈 demo")
 
 
 # Setting up System Prompt
@@ -25,8 +25,8 @@ file_path = 'system_prompt.txt'
 with open(file_path, 'r') as file:
     default_system_message = file.read()
 
-st.info("""Instruction for the chatbot:  
-        {system_prompt}""".format(system_prompt=default_system_message))
+# st.info("""Instruction for the chatbot:  
+        # {system_prompt}""".format(system_prompt=default_system_message))
 
 system_message = default_system_message
 # if st.button('使用现在的system prompt'):
